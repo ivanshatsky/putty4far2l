@@ -52,6 +52,7 @@ add_library(agent STATIC
 
 add_library(guiterminal STATIC
   terminal/terminal.c terminal/bidi.c
+  b64/cencode.c b64/cdecode.c
   ldisc.c config.c dialog.c
   $<TARGET_OBJECTS:logging>)
 
