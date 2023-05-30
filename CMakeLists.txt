@@ -18,7 +18,7 @@ add_subdirectory(utils)
 add_subdirectory(stubs)
 
 add_library(logging OBJECT
-  logging.c)
+  logging.c utils/logeventf.c)
 
 add_library(eventloop STATIC
   callback.c timing.c)
@@ -34,7 +34,8 @@ add_library(crypto STATIC
 add_subdirectory(crypto)
 
 add_library(network STATIC
-  errsock.c logging.c x11disp.c
+  errsock.c x11disp.c
+  $<TARGET_OBJECTS:logging>
   proxy/proxy.c
   proxy/http.c
   proxy/socks4.c
@@ -52,8 +53,8 @@ add_library(agent STATIC
 
 add_library(guiterminal STATIC
   terminal/terminal.c terminal/bidi.c
+  ldisc.c terminal/lineedit.c config.c dialog.c
   b64/cencode.c b64/cdecode.c
-  ldisc.c config.c dialog.c
   $<TARGET_OBJECTS:logging>)
 
 add_library(noterminal STATIC
@@ -115,7 +116,8 @@ add_executable(bidi_test
 target_link_libraries(bidi_test guiterminal utils ${platform_libraries})
 
 add_executable(plink
-  ${platform}/plink.c)
+  ${platform}/plink.c
+  stubs/no-lineedit.c)
 # Note: if we ever port Plink to a platform where we can't implement a
 # serial backend, this be_list command will need to become platform-
 # dependent, so that it only sets the SERIAL option on platforms where

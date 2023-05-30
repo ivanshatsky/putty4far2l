@@ -286,64 +286,21 @@ struct unicode_data {
 #define LGTYP_PACKETS 3                /* logmode: SSH data packets */
 #define LGTYP_SSHRAW 4                 /* logmode: SSH raw data */
 
+/* Platform-generic function to set up a struct unicode_data. This is
+ * only likely to be useful to test programs; real clients will want
+ * to use the more flexible per-platform setup functions. */
+void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata);
+
 /*
  * Enumeration of 'special commands' that can be sent during a
  * session, separately from the byte stream of ordinary session data.
  */
 typedef enum {
-    /*
-     * Commands that are generally useful in multiple backends.
-     */
-    SS_BRK,    /* serial-line break */
-    SS_EOF,    /* end-of-file on session input */
-    SS_NOP,    /* transmit data with no effect */
-    SS_PING,   /* try to keep the session alive (probably, but not
-                * necessarily, implemented as SS_NOP) */
-
-    /*
-     * Commands specific to Telnet.
-     */
-    SS_AYT,    /* Are You There */
-    SS_SYNCH,  /* Synch */
-    SS_EC,     /* Erase Character */
-    SS_EL,     /* Erase Line */
-    SS_GA,     /* Go Ahead */
-    SS_ABORT,  /* Abort Process */
-    SS_AO,     /* Abort Output */
-    SS_IP,     /* Interrupt Process */
-    SS_SUSP,   /* Suspend Process */
-    SS_EOR,    /* End Of Record */
-    SS_EOL,    /* Telnet end-of-line sequence (CRLF, as opposed to CR
-                * NUL that escapes a literal CR) */
-
-    /*
-     * Commands specific to SSH.
-     */
-    SS_REKEY,  /* trigger an immediate repeat key exchange */
-    SS_XCERT,  /* cross-certify another host key ('arg' indicates which) */
-
-    /*
-     * Send a POSIX-style signal. (Useful in SSH and also pterm.)
-     *
-     * We use the master list in ssh/signal-list.h to define these enum
-     * values, which will come out looking like names of the form
-     * SS_SIGABRT, SS_SIGINT etc.
-     */
-    #define SIGNAL_MAIN(name, text) SS_SIG ## name,
-    #define SIGNAL_SUB(name) SS_SIG ## name,
-    #include "ssh/signal-list.h"
-    #undef SIGNAL_MAIN
-    #undef SIGNAL_SUB
-
-    /*
-     * These aren't really special commands, but they appear in the
-     * enumeration because the list returned from
-     * backend_get_specials() will use them to specify the structure
-     * of the GUI specials menu.
-     */
-    SS_SEP,         /* Separator */
-    SS_SUBMENU,     /* Start a new submenu with specified name */
-    SS_EXITMENU,    /* Exit current submenu, or end of entire specials list */
+    /* The list of enum constants is defined in a separate header so
+     * they can be reused in other contexts */
+    #define SPECIAL(x) SS_ ## x,
+    #include "specials.h"
+    #undef SPECIAL
 } SessionSpecialCode;
 
 /*
@@ -531,6 +488,13 @@ enum {
 };
 
 enum {
+    /* Mouse-button assignments */
+    MOUSE_COMPROMISE, /* xterm-ish but with paste on RB in case no MB exists */
+    MOUSE_XTERM, /* xterm-style: MB pastes, RB extends selection */
+    MOUSE_WINDOWS /* Windows-style: RB brings up menu. MB still extends. */
+};
+
+enum {
     /* Function key types (CONF_funky_type) */
     FUNKY_TILDE,
     FUNKY_LINUX,
@@ -549,6 +513,16 @@ enum {
 
 enum {
     FQ_DEFAULT, FQ_ANTIALIASED, FQ_NONANTIALIASED, FQ_CLEARTYPE
+};
+
+enum {
+    CURSOR_BLOCK, CURSOR_UNDERLINE, CURSOR_VERTICAL_LINE
+};
+
+enum {
+    /* these are really bit flags */
+    BOLD_STYLE_FONT = 1,
+    BOLD_STYLE_COLOUR = 2,
 };
 
 enum {
@@ -2045,6 +2019,7 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, sshbug_chanreq) \
     X(INT, NONE, sshbug_dropstart) \
     X(INT, NONE, sshbug_filter_kexinit) \
+    X(INT, NONE, sshbug_rsa_sha2_cert_userauth) \
     /*                                                                \
      * ssh_simple means that we promise never to open any channel     \
      * other than the main one, which means it can safely use a very  \
@@ -2118,7 +2093,15 @@ bool conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
  * Functions to copy, free, serialise and deserialise FontSpecs.
  * Provided per-platform, to go with the platform's idea of a
  * FontSpec's contents.
+ *
+ * The full fontspec_new is declared in the platform header, because
+ * each platform may need it to have a different prototype, due to
+ * constructing fonts in different ways. But fontspec_new_default()
+ * will at least produce _some_ kind of a FontSpec, for use in
+ * situations where one needs to exist (e.g. to put in a Conf) and be
+ * freeable but won't actually be used for anything important.
  */
+FontSpec *fontspec_new_default(void);
 FontSpec *fontspec_copy(const FontSpec *f);
 void fontspec_free(FontSpec *f);
 void fontspec_serialise(BinarySink *bs, FontSpec *f);
@@ -2404,28 +2387,7 @@ void ldisc_configure(Ldisc *, Conf *);
 void ldisc_free(Ldisc *);
 void ldisc_send(Ldisc *, const void *buf, int len, bool interactive);
 void ldisc_echoedit_update(Ldisc *);
-typedef struct LdiscInputToken {
-    /*
-     * Structure that encodes any single item of data that Ldisc can
-     * buffer: either a single character of raw data, or a session
-     * special.
-     */
-    bool is_special;
-    union {
-        struct {
-            /* if is_special == false */
-            char chr;
-        };
-        struct {
-            /* if is_special == true */
-            SessionSpecialCode code;
-            int arg;
-        };
-    };
-} LdiscInputToken;
-bool ldisc_has_input_buffered(Ldisc *);
-LdiscInputToken ldisc_get_input_token(Ldisc *); /* asserts there is input */
-void ldisc_enable_prompt_callback(Ldisc *, prompts_t *);
+void ldisc_provide_userpass_le(Ldisc *, TermLineEditor *);
 void ldisc_check_sendok(Ldisc *);
 
 /*
@@ -2492,9 +2454,6 @@ extern const char commitid[];
 /*
  * Exports from unicode.c in platform subdirs.
  */
-#ifndef CP_UTF8
-#define CP_UTF8 65001
-#endif
 /* void init_ucs(void); -- this is now in platform-specific headers */
 bool is_dbcs_leadbyte(int codepage, char byte);
 int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
@@ -2575,7 +2534,6 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
 extern bool console_batch_mode, console_antispoof_prompt;
 extern bool console_set_batch_mode(bool);
 extern bool console_set_stdio_prompts(bool);
-extern bool console_set_legacy_charset_handling(bool);
 SeatPromptResult console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
@@ -2583,6 +2541,11 @@ void console_print_error_msg_fmt_v(
     const char *prefix, const char *fmt, va_list ap);
 void console_print_error_msg_fmt(const char *prefix, const char *fmt, ...)
     PRINTF_LIKE(2, 3);
+
+/*
+ * Exports from either console frontends or terminal.c.
+ */
+extern bool set_legacy_charset_handling(bool);
 
 /*
  * Exports from printing.c in platform subdirs.

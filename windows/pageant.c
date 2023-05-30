@@ -531,7 +531,7 @@ static void win_add_keyfile(Filename *filename, bool encrypted)
     }
 
   error:
-    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
+    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR, false,
                 HELPCTXID(errors_cantloadkey));
   done:
     sfree(err);
@@ -549,7 +549,7 @@ static void prompt_add_keyfile(bool encrypted)
     if (!keypath) keypath = filereq_new();
     memset(&of, 0, sizeof(of));
     of.hwndOwner = traywindow;
-    of.lpstrFilter = FILTER_KEY_FILES;
+    of.lpstrFilter = FILTER_KEY_FILES_C;
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
     of.lpstrFile = filelist;
@@ -1835,7 +1835,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             args = strchr(command, ' ');
         if (args) {
             *args++ = 0;
-            while (*args && isspace(*args)) args++;
+            while (*args && isspace((unsigned char)*args)) args++;
         }
         spawn_cmd(command, args, show);
     }

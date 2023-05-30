@@ -689,6 +689,11 @@ void init_ucs(Conf *conf, struct unicode_data *ucsdata)
     }
 }
 
+void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata)
+{
+    init_ucs(conf, ucsdata);
+}
+
 static void link_font(WCHAR *line_tbl, WCHAR *font_tbl, WCHAR attr)
 {
     int font_index, line_index, i;
@@ -1071,9 +1076,11 @@ static int check_compose_internal(int first, int second, int recurse)
     if (recurse == 0) {
         nc = check_compose_internal(second, first, 1);
         if (nc == -1)
-            nc = check_compose_internal(toupper(first), toupper(second), 1);
+            nc = check_compose_internal(toupper((unsigned char)first),
+                                        toupper((unsigned char)second), 1);
         if (nc == -1)
-            nc = check_compose_internal(toupper(second), toupper(first), 1);
+            nc = check_compose_internal(toupper((unsigned char)second),
+                                        toupper((unsigned char)first), 1);
     }
     return nc;
 }
@@ -1097,9 +1104,9 @@ int decode_codepage(const char *cp_name)
         s = cp_name;
         d = cpi->name;
         for (;;) {
-            while (*s && !isalnum(*s) && *s != ':')
+            while (*s && !isalnum((unsigned char)*s) && *s != ':')
                 s++;
-            while (*d && !isalnum(*d) && *d != ':')
+            while (*d && !isalnum((unsigned char)*d) && *d != ':')
                 d++;
             if (*s == 0) {
                 codepage = cpi->codepage;
@@ -1365,7 +1372,7 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 
         while (get_avail(src)) {
             wchar_t wcbuf[2];
-            size_t nwc = decode_utf8_to_wchar(src, wcbuf);
+            size_t nwc = decode_utf8_to_wchar(src, wcbuf, NULL);
 
             for (size_t i = 0; i < nwc; i++) {
                 if (remaining > 0) {

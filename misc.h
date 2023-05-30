@@ -26,6 +26,7 @@ char *host_strrchr(const char *s, int c);
 char *host_strduptrim(const char *s);
 
 char *dupstr(const char *s);
+wchar_t *dupwcs(const wchar_t *s);
 char *dupcat_fn(const char *s1, ...);
 #define dupcat(...) dupcat_fn(__VA_ARGS__, (const char *)NULL)
 char *dupprintf(const char *fmt, ...) PRINTF_LIKE(1, 2);
@@ -255,17 +256,41 @@ unsigned smemeq(const void *av, const void *bv, size_t len);
  * encoded in UTF-16. */
 char *encode_wide_string_as_utf8(const wchar_t *wstr);
 
+/* Decode UTF-8 to a wide-character string, emitting UTF-16 surrogates
+ * if sizeof(wchar_t) == 2. */
+wchar_t *decode_utf8_to_wide_string(const char *ustr);
+
 /* Decode a single UTF-8 character. Returns U+FFFD for any of the
  * illegal cases. If the source is empty, returns L'\0' (and sets the
  * error indicator on the source, of course). */
-unsigned decode_utf8(BinarySource *src);
+#define DECODE_UTF8_FAILURE_LIST(X) \
+    X(DUTF8_SUCCESS, "success")                                      \
+    X(DUTF8_SPURIOUS_CONTINUATION, "spurious continuation byte")     \
+    X(DUTF8_ILLEGAL_BYTE, "illegal UTF-8 byte value")                \
+    X(DUTF8_E_OUT_OF_DATA, "unfinished multibyte encoding at end of string") \
+    X(DUTF8_TRUNCATED_SEQUENCE, "multibyte encoding interrupted by " \
+      "non-continuation byte")                                       \
+    X(DUTF8_OVERLONG_ENCODING, "overlong encoding")                  \
+    X(DUTF8_ENCODED_SURROGATE, "Unicode surrogate character encoded in " \
+      "UTF-8")                                                       \
+    X(DUTF8_CODE_POINT_TOO_BIG, "code point outside the Unicode range") \
+    /* end of list */
+typedef enum DecodeUTF8Failure {
+    #define ENUM_DECL(sym, string) sym,
+    DECODE_UTF8_FAILURE_LIST(ENUM_DECL)
+    #undef ENUM_DECL
+    DUTF8_N_FAILURE_CODES
+} DecodeUTF8Failure;
+unsigned decode_utf8(BinarySource *src, DecodeUTF8Failure *err);
+extern const char *const decode_utf8_error_strings[DUTF8_N_FAILURE_CODES];
 
 /* Decode a single UTF-8 character to an output buffer of the
  * platform's wchar_t. May write a pair of surrogates if
  * sizeof(wchar_t) == 2, assuming that in that case the wide string is
  * encoded in UTF-16. Otherwise, writes one character. Returns the
  * number written. */
-size_t decode_utf8_to_wchar(BinarySource *src, wchar_t *out);
+size_t decode_utf8_to_wchar(BinarySource *src, wchar_t *out,
+                            DecodeUTF8Failure *err);
 
 /* Normalise a UTF-8 string into Normalisation Form C. */
 strbuf *utf8_to_nfc(ptrlen input);
