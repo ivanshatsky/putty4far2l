@@ -676,6 +676,8 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_b(sesskey, "CRImpliesLF", conf_get_bool(conf, CONF_crhaslf));
     write_setting_b(sesskey, "DisableArabicShaping", conf_get_bool(conf, CONF_no_arabicshaping));
     write_setting_b(sesskey, "DisableBidi", conf_get_bool(conf, CONF_no_bidi));
+    /* far2l */
+    write_setting_i(sesskey, "SharedClipboard", conf_get_int(conf, CONF_shared_clipboard));
     write_setting_b(sesskey, "WinNameAlways", conf_get_bool(conf, CONF_win_name_always));
     write_setting_s(sesskey, "WinTitle", conf_get_str(conf, CONF_wintitle));
     write_setting_i(sesskey, "TermWidth", conf_get_int(conf, CONF_width));
@@ -1122,6 +1124,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "CRImpliesLF", false, conf, CONF_crhaslf);
     gppb(sesskey, "DisableArabicShaping", false, conf, CONF_no_arabicshaping);
     gppb(sesskey, "DisableBidi", false, conf, CONF_no_bidi);
+    /* far2l */
+    gppi(sesskey, "SharedClipboard", SHARED_CLIPBOARD_ASK, conf, CONF_shared_clipboard);
     gppb(sesskey, "WinNameAlways", true, conf, CONF_win_name_always);
     gpps(sesskey, "WinTitle", "", conf, CONF_wintitle);
     gppi(sesskey, "TermWidth", 80, conf, CONF_width);

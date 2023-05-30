@@ -511,6 +511,12 @@ enum {
     SHARROW_BITMAP        /* ESC [ 1 ; n A, where n = 1 + bitmap of CAS */
 };
 
+/* far2l */
+enum {
+    /* Shared clipboard (CONF_shared_clipboard) */
+    SHARED_CLIPBOARD_DISABLED, SHARED_CLIPBOARD_ENABLED, SHARED_CLIPBOARD_ASK
+};
+
 enum {
     FQ_DEFAULT, FQ_ANTIALIASED, FQ_NONANTIALIASED, FQ_CLEARTYPE
 };
@@ -1954,6 +1960,8 @@ NORETURN void cleanup_exit(int);
     X(STR, NONE, printer) \
     X(BOOL, NONE, no_arabicshaping) \
     X(BOOL, NONE, no_bidi) \
+    /* far2l */ \
+    X(INT, NONE, shared_clipboard) \
     /* Colour options */ \
     X(BOOL, NONE, ansi_colour) \
     X(BOOL, NONE, xterm_256_colour) \

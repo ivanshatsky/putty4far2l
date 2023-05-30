@@ -2190,6 +2190,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_checkbox(s, "Disable bidirectional text display",
                   'd', HELPCTX(features_bidi), conf_checkbox_handler,
                   I(CONF_no_bidi));
+    /* far2l */
+    ctrl_radiobuttons(s, "Shared clipboard:", 'p', 3,
+                      NULL, conf_radiobutton_handler,
+                      I(CONF_shared_clipboard),
+                      "Disabled", I(SHARED_CLIPBOARD_DISABLED),
+                      "Enabled", I(SHARED_CLIPBOARD_ENABLED),
+                      "Ask user", I(SHARED_CLIPBOARD_ASK));
 
     /*
      * The Window panel.

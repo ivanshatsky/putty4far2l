@@ -1688,6 +1688,8 @@ static void term_copy_stuff_from_conf(Terminal *term)
     term->xterm_mouse_forbidden = conf_get_bool(term->conf, CONF_no_mouse_rep);
     term->xterm_256_colour = conf_get_bool(term->conf, CONF_xterm_256_colour);
     term->true_colour = conf_get_bool(term->conf, CONF_true_colour);
+    /* far2l */
+    term->clip_allowed = conf_get_int(term->conf, CONF_shared_clipboard);
 
     /*
      * Parse the control-character escapes in the configured
@@ -2065,7 +2067,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     /* far2l */
     term->far2l_ext = 0;
     term->is_apc = 0;
-    term->clip_allowed = -1;
+    //term->clip_allowed = -1;
 
     term->win = win;
     term->ucsdata = ucsdata;
@@ -3212,14 +3214,14 @@ static void do_osc(Terminal *term)
                 sfree(reply_buf);
 
                 // reset clipboard state; todo: do it on session init!
-                term->clip_allowed = -1;
+                term->clip_allowed = conf_get_int(term->conf, CONF_shared_clipboard);
 
             } else if (strncmp(term->osc_string+5, "0", 1) == 0) {
 
                 term->far2l_ext = 0;
 
                 // reset clipboard state; todo: do it on session init!
-                term->clip_allowed = -1;
+                term->clip_allowed = conf_get_int(term->conf, CONF_shared_clipboard);
 
             } else if (strncmp(term->osc_string+5, ":", 1) == 0) {
 
@@ -3429,7 +3431,7 @@ static void do_osc(Terminal *term)
                                 reply = malloc(reply_size);
 
                                 #ifdef _WINDOWS
-                                if (term->clip_allowed == -1) {
+                                if (term->clip_allowed == 2) {
                                     int status = MessageBox(NULL,
                                         "Allow far2l clipboard sync?", "PyTTY", MB_OKCANCEL);
                                     if (status == IDOK) { 
