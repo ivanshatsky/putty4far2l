@@ -9,6 +9,10 @@ Technical details about far2l terminal extensions can be found here:
 
     https://github.com/cyd01/KiTTY/issues/74#issuecomment-626917718
 
+Added additional CMake build option STATIC_MSVC_CRT = ON | OFF
+for statically linking Microsoft Visual C runtime library.
+By default MSVCRT is linked dynamically.
+
 ---
 
 This is the README for PuTTY, a free Windows and Unix Telnet and SSH

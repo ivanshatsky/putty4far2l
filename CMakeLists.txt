@@ -9,6 +9,25 @@ add_subdirectory(doc)
 
 add_compile_definitions(HAVE_CMAKE_H)
 
+if(MSVC)
+  option(STATIC_MSVC_CRT "Static MSVC runtimes" OFF)
+
+  if(STATIC_MSVC_CRT)
+    set(CompilerFlags
+      CMAKE_CXX_FLAGS
+      CMAKE_CXX_FLAGS_DEBUG
+      CMAKE_CXX_FLAGS_RELEASE
+      CMAKE_C_FLAGS
+      CMAKE_C_FLAGS_DEBUG
+      CMAKE_C_FLAGS_RELEASE
+    )
+
+    foreach(CompilerFlag ${CompilerFlags})
+      string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+    endforeach()
+  endif()
+endif()
+
 include_directories(terminal)
 
 add_library(utils STATIC
