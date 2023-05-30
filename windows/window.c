@@ -3300,7 +3300,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             // set unicode character
             BYTE kb[256];
             GetKeyboardState(kb);
-            WCHAR uc[5] = {};
+            WCHAR uc[5] = {0};
             ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
             // todo: check result
             //int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
