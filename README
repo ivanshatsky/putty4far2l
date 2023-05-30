@@ -1,3 +1,16 @@
+This branch incorporates far2l extensions, originally added to the
+PuTTY client by Ivan Sorokin, into the current PuTTY codebase.
+
+Original putty4far2l repository is here:
+
+    https://github.com/unxed/putty4far2l
+
+Technical details about far2l terminal extensions can be found here:
+
+    https://github.com/cyd01/KiTTY/issues/74#issuecomment-626917718
+
+---
+
 This is the README for PuTTY, a free Windows and Unix Telnet and SSH
 client.
 

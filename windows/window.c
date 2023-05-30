@@ -11,6 +11,10 @@
 #include <assert.h>
 #include <wchar.h>
 
+/* far2l base64 */
+#include "../b64/cencode.h"
+#include "../b64/cdecode.h"
+
 #define COMPILE_MULTIMON_STUBS
 
 #include "putty.h"
@@ -2768,9 +2772,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         wgs->ignore_clip = wParam; /* don't panic on DESTROYCLIPBOARD */
         break;
       case WM_DESTROYCLIPBOARD:
-        if (!wgs->ignore_clip)
-            term_lost_clipboard_ownership(wgs->term, CLIP_SYSTEM);
-        wgs->ignore_clip = false;
+        /* far2l */
+        // In far2l extensions mode we should not do anything here,
+        // clipboard is handled by far2l extensions.
+        if (!(wgs->term->far2l_ext == 1) || (!wgs->term->clip_allowed)) {
+            if (!wgs->ignore_clip)
+                term_lost_clipboard_ownership(wgs->term, CLIP_SYSTEM);
+            wgs->ignore_clip = false;
+        }
         return 0;
       case WM_PAINT: {
         PAINTSTRUCT p;
@@ -3239,6 +3248,112 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
          * number noise.
          */
         noise_ultralight(NOISE_SOURCE_KEY, lParam);
+
+        /* far2l */
+        if (wgs->term->far2l_ext) {
+
+            // far2l_ext keyboard input event structure
+            WORD repeat;      // 2
+            WORD vkc;         // 2
+            WORD vsc;         // 2
+            DWORD ctrl;       // 4
+            DWORD uchar;      // 4
+            CHAR type;        // 1
+
+            // set repeat, virtual keycode, virtual scancode
+            repeat = LOWORD(lParam);
+            vsc = HIWORD(lParam) & 0xFF;
+            vkc = LOWORD(wParam);
+
+            // this fixes far2l's "editor autocomplete" plugin behavior
+            if ((vkc == VK_TAB) || (vkc == VK_BACK) || (vkc == VK_ESCAPE) || (vkc == VK_DELETE)) {
+                vsc = 0;
+            }
+
+            // fixes strange alt+arrows behavior
+            if ((vkc == VK_LEFT) || (vkc == VK_RIGHT) || (vkc == VK_UP) || (vkc == VK_DOWN)) {
+                vsc = 0;
+            }
+
+            // set control keys state
+            ctrl = 0;
+            if (GetAsyncKeyState(VK_LCONTROL)) { ctrl |= LEFT_CTRL_PRESSED; }
+            if (GetAsyncKeyState(VK_RCONTROL)) { ctrl |= RIGHT_CTRL_PRESSED; }
+            if (GetAsyncKeyState(VK_LMENU)) { ctrl |= LEFT_ALT_PRESSED; }
+            if (GetAsyncKeyState(VK_RMENU)) { ctrl |= RIGHT_ALT_PRESSED; }
+            if (GetAsyncKeyState(VK_SHIFT)) { ctrl |= SHIFT_PRESSED; }
+            // begin: reserved for future usage
+            // Console WinAPI does not allow us to distinguish between left and right
+            // shift keys. But PuTTY is not a console app, so why not to send
+            // all information about control keys state that we actually have here?
+            // Using bits not used by any other status for backward compatibility.
+            #define RIGHT_SHIFT_PRESSED 0x0400
+            #define LEFT_SHIFT_PRESSED 0x0200
+            if (GetAsyncKeyState(VK_LSHIFT)) { ctrl |= SHIFT_PRESSED; ctrl |= RIGHT_SHIFT_PRESSED; }
+            if (GetAsyncKeyState(VK_RSHIFT)) { ctrl |= SHIFT_PRESSED; ctrl |= LEFT_SHIFT_PRESSED; }
+            // end
+            if ((lParam & ( 1 << 24 )) >> 24) { ctrl |= ENHANCED_KEY; }
+            if ((((u_short)GetKeyState(VK_NUMLOCK)) & 0xffff) != 0) { ctrl |= NUMLOCK_ON; }
+            if ((((u_short)GetKeyState(VK_SCROLL)) & 0xffff) != 0) { ctrl |= SCROLLLOCK_ON; }
+            if ((((u_short)GetKeyState(VK_CAPITAL)) & 0xffff) != 0) { ctrl |= CAPSLOCK_ON; }
+
+            // set unicode character
+            BYTE kb[256];
+            GetKeyboardState(kb);
+            WCHAR uc[5] = {};
+            ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
+            // todo: check result
+            //int result = ToUnicode(wParam, MapVirtualKey(wParam, MAPVK_VK_TO_VSC), kb, uc, 4, 0);
+            uchar = uc[0];
+
+            // set event type
+            if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
+                type = 'K';            
+            } else {
+                type = 'k';
+            }
+
+            char* kev = malloc(15); // keyboard event structure length
+            memcpy(kev, &repeat, sizeof(repeat));
+            memcpy(kev + 2, &vkc, sizeof(vkc));
+            memcpy(kev + 4, &vsc, sizeof(vsc));
+            memcpy(kev + 6, &ctrl, sizeof(ctrl));
+            memcpy(kev + 10, &uchar, sizeof(uchar));
+            memcpy(kev + 14, &type, sizeof(type));
+
+            // base64-encode kev
+        	base64_encodestate _state;
+            base64_init_encodestate(&_state);
+            char* out = malloc(15*2);
+            int count = base64_encode_block(kev, 15, out, &_state);
+		    count += base64_encode_blockend(out + count, &_state);
+
+            /*
+            out[count] = 0; // null-terminate
+            FILE* f = fopen("putty.log", "a");
+            fprintf(f, "count: %d, b64: %s\n", count, out);
+            fclose(f);
+            */
+
+            // send escape seq
+
+            if (wgs->backend) {
+
+                char* str = "\x1b_f2l";
+                backend_send(wgs->backend, str, strlen(str));
+
+                backend_send(wgs->backend, out, count);
+
+                char* str2 = "\x07";
+                backend_send(wgs->backend, str2, strlen(str2));
+            }
+
+            // don't forget to free memory :)
+            free(out);
+
+            // we should not do any other key processing in this mode
+            return 0;
+        }
 
         /*
          * We don't do TranslateMessage since it disassociates the
