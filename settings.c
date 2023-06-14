@@ -1125,7 +1125,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "DisableArabicShaping", false, conf, CONF_no_arabicshaping);
     gppb(sesskey, "DisableBidi", false, conf, CONF_no_bidi);
     /* far2l */
-    gppi(sesskey, "SharedClipboard", SHARED_CLIPBOARD_ASK, conf, CONF_shared_clipboard);
+    gppi(sesskey, "SharedClipboard", SHARED_CLIPBOARD_ENABLED, conf, CONF_shared_clipboard);
     gppb(sesskey, "WinNameAlways", true, conf, CONF_win_name_always);
     gpps(sesskey, "WinTitle", "", conf, CONF_wintitle);
     gppi(sesskey, "TermWidth", 80, conf, CONF_width);
