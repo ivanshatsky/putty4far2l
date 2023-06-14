@@ -846,6 +846,8 @@ static void wgs_cleanup(WinGuiSeat *wgs)
 {
     deinit_fonts(wgs);
     sfree(wgs->logpal);
+    if (wgs->term)
+        term_free(wgs->term);
     if (wgs->pal)
         DeleteObject(wgs->pal);
     wgs_unlink(wgs);
@@ -3308,7 +3310,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             // set event type
             if ((message == WM_KEYDOWN) || (message == WM_SYSKEYDOWN)) {
-                type = 'K';            
+                type = 'K';
             } else {
                 type = 'k';
             }
@@ -4015,7 +4017,7 @@ static void do_text_internal(
         opaque = false;
     }
 
-    if (lattr != LATTR_TOP && 
+    if (lattr != LATTR_TOP &&
         (force_manual_underline || (wgs->und_mode == UND_LINE &&
                                     (attr & ATTR_UNDER))))
         draw_horizontal_line_on_text(wgs, wgs->descent, lattr, line_box, fg);

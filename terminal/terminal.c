@@ -1802,7 +1802,7 @@ void term_reconfig(Terminal *term, Conf *conf)
                     conf_get_int_int(conf, CONF_colours, i*3+j))
                     break;
             if (j < 3) {
-                /* Actually enacting the change has to be deferred 
+                /* Actually enacting the change has to be deferred
                  * until the new conf is installed. */
                 palette_changed = true;
                 break;
@@ -2112,6 +2112,9 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->bidi_ctx = bidi_new_context();
 
+    term->osc_allocated_size = OSC_ALLOCATE_BLOCK_SIZE;
+    term->osc_string = snewn(term->osc_allocated_size + 1, char);
+
     palette_reset(term, false);
 
     return term;
@@ -2177,6 +2180,8 @@ void term_free(Terminal *term)
     /* In case a term_userpass_state is still around */
     if (term->userpass_state)
         term_userpass_state_free(term->userpass_state);
+
+    sfree(term->osc_string);
 
     sfree(term);
 }
@@ -3236,21 +3241,6 @@ static void do_osc(Terminal *term)
                 char* reply = 0;
                 int reply_size = 0;
 
-                if (term->osc_strlen == OSC_STR_MAX) {
-                    // it's possibly too large clipboard
-
-                    #ifdef _WINDOWS
-                    MessageBox(NULL, "Too large clipboard :(", "Error", MB_OK);
-                    #endif
-
-                    // correct request id is lost forever
-                    // so we can not prevent far2l from hanging
-                    // so sad
-
-                    // fixme: good idea is to free all allocated memory here, though
-                    exit(100);
-                }
-
                 DWORD len;
                 DWORD zero = 0;
 
@@ -3313,7 +3303,7 @@ static void do_osc(Terminal *term)
                             pnid.hIcon = LoadIcon(0, IDI_APPLICATION);
                             pnid.uID = 200;
                             Shell_NotifyIconW(NIM_DELETE, &pnid);
-                            
+
                             // todo: use putty icon
                             pnid.cbSize = sizeof(pnid);
                             pnid.hWnd = NULL;
@@ -3337,7 +3327,7 @@ static void do_osc(Terminal *term)
                     case 'w':
 
                         // get largest console window size
-                        
+
                         reply_size = 5;
                         reply = malloc(reply_size);
 
@@ -3434,7 +3424,7 @@ static void do_osc(Terminal *term)
                                 if (term->clip_allowed == 2) {
                                     int status = MessageBox(NULL,
                                         "Allow far2l clipboard sync?", "PyTTY", MB_OKCANCEL);
-                                    if (status == IDOK) { 
+                                    if (status == IDOK) {
                                         term->clip_allowed = 1;
                                     } else {
                                         // IDCANCEL
@@ -3720,7 +3710,7 @@ static void do_osc(Terminal *term)
 
                         break;
                 }
-                
+
                 free(d_out);
 
                 if (reply_size > 0) {
@@ -3759,7 +3749,7 @@ static void do_osc(Terminal *term)
                     // don't forget to free memory :)
                     free(reply);
                     free(out);
-                    
+
                 }
             }
         }
@@ -4275,6 +4265,12 @@ unsigned long term_translate(
     }
     return c;
 }
+
+#define SetupOSCString(term)                                                              \
+    if (term->osc_strlen >= term->osc_allocated_size < 1) {                               \
+        term->osc_allocated_size += OSC_ALLOCATE_BLOCK_SIZE;                              \
+        term->osc_string = sresize(term->osc_string, term->osc_allocated_size + 1, char); \
+    }
 
 /*
  * Remove everything currently in `inbuf' and stick it up on the
@@ -5880,6 +5876,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
 
                         /* far2l */
                         if (term->is_apc) {
+                            SetupOSCString(term);
                             term->osc_string[term->osc_strlen++] = (char)c;
                         }
                     }
@@ -5952,8 +5949,8 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 }
 
                 /* Anything else gets added to the string */
-                if (term->osc_strlen < OSC_STR_MAX)
-                    term->osc_string[term->osc_strlen++] = (char)c;
+                SetupOSCString(term);
+                term->osc_string[term->osc_strlen++] = (char)c;
                 break;
               case OSC_MAYBE_ST_UTF8:
                 /* In UTF-8 mode, we've seen C2, so are we now seeing
@@ -5967,10 +5964,9 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 /* No, so append the pending C2 byte to the OSC string
                  * followed by the current character, and go back to
                  * OSC string accumulation */
-                if (term->osc_strlen < OSC_STR_MAX)
-                    term->osc_string[term->osc_strlen++] = 0xC2;
-                if (term->osc_strlen < OSC_STR_MAX)
-                    term->osc_string[term->osc_strlen++] = (char)c;
+                SetupOSCString(term);
+                term->osc_string[term->osc_strlen++] = 0xC2;
+                term->osc_string[term->osc_strlen++] = (char)c;
                 term->termstate = OSC_STRING;
                 break;
               case SEEN_OSC_P: {

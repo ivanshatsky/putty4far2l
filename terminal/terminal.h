@@ -183,11 +183,11 @@ struct terminal_tag {
 #define ANSI_QUE(x)     ANSI(x,1)
 
 /* far2l */
-//#define OSC_STR_MAX 2048
-#define OSC_STR_MAX 1048576
+#define OSC_ALLOCATE_BLOCK_SIZE 1048576
 
     int osc_strlen;
-    char osc_string[OSC_STR_MAX + 1];
+    int osc_allocated_size;
+    char* osc_string;
     bool osc_w;
 
     /* far2l */
