@@ -4267,7 +4267,7 @@ unsigned long term_translate(
 }
 
 #define SetupOSCString(term)                                                              \
-    if (term->osc_strlen >= term->osc_allocated_size < 1) {                               \
+    if (term->osc_strlen >= term->osc_allocated_size - 1) {                               \
         term->osc_allocated_size += OSC_ALLOCATE_BLOCK_SIZE;                              \
         term->osc_string = sresize(term->osc_string, term->osc_allocated_size + 1, char); \
     }
